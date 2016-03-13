@@ -12,6 +12,7 @@ var TimeGrid = FC.TimeGrid = Grid.extend(DayTableMixin, {
 	maxTime: null, // Duration object that denotes the exclusive visible end time of any given day
 	labelFormat: null, // formatting string for times running along vertical axis
 	labelInterval: null, // duration of how often a label should be displayed for a slot
+	eventMaxDuration: null, // event maximum duration
 
 	colEls: null, // cells elements in the day-row background
 	slatEls: null, // elements running horizontally across all columns
@@ -144,6 +145,11 @@ var TimeGrid = FC.TimeGrid = Grid.extend(DayTableMixin, {
 		this.labelInterval = input ?
 			moment.duration(input) :
 			this.computeLabelInterval(slotDuration);
+
+		var eventMaxDuration = view.opt('eventMaxDuration');
+		if (eventMaxDuration) {
+			this.eventMaxDuration = moment.duration(eventMaxDuration);
+		}
 	},
 
 
@@ -495,6 +501,36 @@ var TimeGrid = FC.TimeGrid = Grid.extend(DayTableMixin, {
 	unrenderSelection: function() {
 		this.unrenderHelper();
 		this.unrenderHighlight();
+	},
+
+	computeSelection: function(span0, span1) {
+		var span = Grid.prototype.computeSelection.apply(this, arguments);
+
+		if (span) {
+			this.cutSelectionToEventMaxDuration(span, span0);
+		}
+
+		return span;
+	},
+
+
+	cutSelectionToEventMaxDuration: function(range, firstCell) {
+		var eventMaxDuration = this.view.calendar.options.eventMaxDuration;
+		if (eventMaxDuration) {
+			eventMaxDuration = moment.duration(eventMaxDuration);
+			if (range.start.isSame(firstCell.start)) {
+				var eventMaxEndTime = range.start.clone().add(eventMaxDuration);
+				if (range.end.isAfter(eventMaxEndTime)) {
+					range.end = eventMaxEndTime;
+				}
+			}
+			else {
+				var eventMinStartTime = range.end.clone().subtract(eventMaxDuration);
+				if (range.start.isBefore(eventMinStartTime)) {
+					range.start = eventMinStartTime;
+				}
+			}
+		}
 	},
 
 
